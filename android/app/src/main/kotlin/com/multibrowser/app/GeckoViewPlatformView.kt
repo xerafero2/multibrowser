@@ -23,17 +23,17 @@ class GeckoViewPlatformView(
 
     init {
         val runtime = GeckoRuntime.getDefault(context)
-        session = GeckoSession()
-
-        val settings = session.settings
-        settings.userAgentMode = GeckoSessionSettings.USER_AGENT_MODE_MOBILE
-        settings.usePrivateMode = false
 
         val ua = params["userAgent"] as? String
+
+        val builder = GeckoSessionSettings.Builder()
+        builder.usePrivateMode(false)
+        builder.userAgentMode(GeckoSessionSettings.USER_AGENT_MODE_MOBILE)
         if (!ua.isNullOrBlank()) {
-            settings.userAgentOverride = ua
+            builder.userAgentOverride(ua)
         }
 
+        session = GeckoSession(builder.build())
         session.open(runtime)
         geckoView.setSession(session)
 
@@ -58,13 +58,15 @@ class GeckoViewPlatformView(
                 }
                 "setUserAgent" -> {
                     val newUa = call.argument<String>("ua") ?: ""
-                    settings.userAgentOverride = if (newUa.isBlank()) null else newUa
+                    val b = GeckoSessionSettings.Builder(session.settings)
+                    b.userAgentOverride(if (newUa.isBlank()) null else newUa)
+                    session.settings = b.build()
                     session.reload()
                     result.success(null)
                 }
                 "evaluateJS" -> {
                     val js = call.argument<String>("js") ?: ""
-                    session.evaluateJS(js)
+                    session.loadUri("javascript:(function() { $js })();")
                     result.success(null)
                 }
                 else -> result.notImplemented()
