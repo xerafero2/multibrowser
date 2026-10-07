@@ -2,17 +2,47 @@ import 'package:flutter/material.dart';
 import 'profile_model.dart';
 import 'gecko_webview.dart';
 
-class SplitView extends StatelessWidget {
+class SplitView extends StatefulWidget {
   final List<Profile> profiles;
 
   const SplitView({super.key, required this.profiles});
 
   @override
-  Widget build(BuildContext context) {
-    final n = profiles.length;
-    if (n == 1) {
-      return _panel(0);
+  State<SplitView> createState() => _SplitViewState();
+}
+
+class _SplitViewState extends State<SplitView> {
+  final Map<int, GeckoWebViewController> _controllers = {};
+  final Map<int, double> _zooms = {};
+  final Map<int, bool> _desktop = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < widget.profiles.length; i++) {
+      _zooms[i] = 0.7;
+      _desktop[i] = true;
     }
+  }
+
+  void _zoomIn(int i) {
+    setState(() {
+      _zooms[i] = ((_zooms[i] ?? 0.7) + 0.1).clamp(0.25, 1.5);
+    });
+    _controllers[i]?.setZoom(_zooms[i]!);
+  }
+
+  void _zoomOut(int i) {
+    setState(() {
+      _zooms[i] = ((_zooms[i] ?? 0.7) - 0.1).clamp(0.25, 1.5);
+    });
+    _controllers[i]?.setZoom(_zooms[i]!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = widget.profiles.length;
+    if (n == 1) return _panel(0);
     if (n == 2) {
       return Column(
         children: [
@@ -59,8 +89,9 @@ class SplitView extends StatelessWidget {
   }
 
   Widget _panel(int index) {
-    final p = profiles[index];
-    GeckoWebViewController? controller;
+    final p = widget.profiles[index];
+    final zoom = _zooms[index] ?? 0.7;
+    final desktop = _desktop[index] ?? true;
 
     return Container(
       margin: const EdgeInsets.all(3),
@@ -72,7 +103,7 @@ class SplitView extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             decoration: const BoxDecoration(
               color: Color(0xFF141924),
               borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
@@ -97,7 +128,7 @@ class SplitView extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     p.name,
@@ -110,27 +141,11 @@ class SplitView extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => controller?.reload(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.refresh, size: 15, color: Color(0xFF8B95A7)),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => controller?.back(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.chevron_left, size: 18, color: Color(0xFF8B95A7)),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => controller?.forward(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.chevron_right, size: 18, color: Color(0xFF8B95A7)),
-                  ),
-                ),
+                _iconBtn(Icons.text_decrease, () => _zoomOut(index), 'Zoom out'),
+                _iconBtn(Icons.text_increase, () => _zoomIn(index), 'Zoom in'),
+                _iconBtn(Icons.refresh, () => _controllers[index]?.reload(), 'Reload'),
+                _iconBtn(Icons.chevron_left, () => _controllers[index]?.back(), 'Back'),
+                _iconBtn(Icons.chevron_right, () => _controllers[index]?.forward(), 'Forward'),
               ],
             ),
           ),
@@ -140,11 +155,27 @@ class SplitView extends StatelessWidget {
               child: GeckoWebView(
                 url: p.url,
                 userAgent: p.userAgent,
-                onReady: (c) => controller = c,
+                zoom: zoom,
+                desktopMode: desktop,
+                onReady: (c) => _controllers[index] = c,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, VoidCallback onTap, String tooltip) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Icon(icon, size: 15, color: const Color(0xFF8B95A7)),
+        ),
       ),
     );
   }
