@@ -48,7 +48,7 @@ class GeckoViewPlatformView(
         session.open(runtime)
         geckoView.setSession(session)
 
-        session.contentDelegate = object : GeckoSession.ContentDelegate {
+        session.progressDelegate = object : GeckoSession.ProgressDelegate {
             override fun onPageStop(s: GeckoSession, success: Boolean) {
                 applyZoom()
             }
@@ -99,21 +99,14 @@ class GeckoViewPlatformView(
 
     private fun applyZoom() {
         val z = currentZoom.coerceIn(0.25f, 1.5f)
-        val js = """
-            (function() {
-                try {
-                    var meta = document.querySelector('meta[name="viewport"]');
-                    if (!meta) {
-                        meta = document.createElement('meta');
-                        meta.name = 'viewport';
-                        document.head.appendChild(meta);
-                    }
-                    meta.setAttribute('content', 'width=device-width, initial-scale=$z, minimum-scale=0.25, maximum-scale=5');
-                    document.documentElement.style.zoom = '$z';
-                    document.documentElement.style.MozTransformOrigin = 'top left';
-                } catch (e) {}
-            })();
-        """.trimIndent()
+        val js = "(function(){" +
+                "try{" +
+                "var m=document.querySelector('meta[name=\"viewport\"]');" +
+                "if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}" +
+                "m.setAttribute('content','width=device-width, initial-scale=$z, minimum-scale=0.25, maximum-scale=5');" +
+                "document.documentElement.style.zoom='$z';" +
+                "}catch(e){}" +
+                "})();"
         session.loadUri("javascript:$js")
     }
 
