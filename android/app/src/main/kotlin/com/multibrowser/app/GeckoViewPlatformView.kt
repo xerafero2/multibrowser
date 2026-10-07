@@ -58,9 +58,7 @@ class GeckoViewPlatformView(
                 }
                 "setUserAgent" -> {
                     val newUa = call.argument<String>("ua") ?: ""
-                    val b = GeckoSessionSettings.Builder(session.settings)
-                    b.userAgentOverride(if (newUa.isBlank()) null else newUa)
-                    session.settings = b.build()
+                    session.settings.userAgentOverride = newUa
                     session.reload()
                     result.success(null)
                 }
